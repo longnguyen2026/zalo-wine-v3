@@ -161,7 +161,17 @@ echo
 # P3.2 Install Dependencies
 ###########################################################################
 
+echo
+
 title "Installing Dependencies"
+
+###########################################################################
+# Update Package Database
+###########################################################################
+
+log "Updating package database..."
+
+sudo apt update
 
 ###########################################################################
 # Detect FUSE Package
@@ -190,32 +200,25 @@ PACKAGES=(
     "$FUSE_PACKAGE"
 )
 
-MISSING_PACKAGES=()
+###########################################################################
+# Install Packages
+###########################################################################
 
-for pkg in "${PACKAGES[@]}"; do
+for PKG in "${PACKAGES[@]}"; do
 
-    if dpkg -s "$pkg" >/dev/null 2>&1; then
-        success "$pkg already installed"
+    if dpkg -s "$PKG" >/dev/null 2>&1; then
+
+        success "$PKG already installed."
+
     else
-        warn "$pkg missing"
-        MISSING_PACKAGES+=("$pkg")
+
+        log "Installing $PKG..."
+
+        sudo apt install -y "$PKG"
+
     fi
 
 done
-
-echo
-
-if (( ${#MISSING_PACKAGES[@]} > 0 )); then
-
-    log "Installing missing packages..."
-
-    sudo apt install -y "${MISSING_PACKAGES[@]}"
-
-else
-
-    success "All required packages are already installed."
-
-fi
 
 ###########################################################################
 # Install Fonts
@@ -225,56 +228,29 @@ echo
 
 title "Installing Fonts"
 
-FONT_PACKAGES=(
+FONTS=(
     fonts-liberation
     fonts-wqy-zenhei
     fonts-wqy-microhei
+    ttf-mscorefonts-installer
 )
 
-MISSING_FONTS=()
+for FONT in "${FONTS[@]}"; do
 
-for pkg in "${FONT_PACKAGES[@]}"; do
+    if dpkg -s "$FONT" >/dev/null 2>&1; then
 
-    if dpkg -s "$pkg" >/dev/null 2>&1; then
-        success "$pkg already installed"
+        success "$FONT already installed."
+
     else
-        warn "$pkg missing"
-        MISSING_FONTS+=("$pkg")
+
+        log "Installing $FONT..."
+
+        sudo apt install -y "$FONT" || \
+        warn "$FONT is unavailable on this distribution."
+
     fi
 
 done
-
-if (( ${#MISSING_FONTS[@]} > 0 )); then
-
-    log "Installing fonts..."
-
-    sudo apt install -y "${MISSING_FONTS[@]}"
-
-else
-
-    success "All fonts are already installed."
-
-fi
-
-###########################################################################
-# Install Microsoft Core Fonts
-###########################################################################
-
-echo
-
-title "Installing Microsoft Core Fonts"
-
-if dpkg -s ttf-mscorefonts-installer >/dev/null 2>&1; then
-
-    success "Microsoft Core Fonts already installed."
-
-else
-
-    log "Installing Microsoft Core Fonts..."
-
-    sudo apt install -y ttf-mscorefonts-installer || true
-
-fi
 
 ###########################################################################
 # Install Winetricks
@@ -290,21 +266,98 @@ if command -v winetricks >/dev/null 2>&1; then
 
 else
 
-    log "Installing Winetricks..."
+    if [[ -f "$SCRIPT_DIR/assets/winetricks" ]]; then
 
-    sudo apt install -y winetricks
+        log "Installing bundled Winetricks..."
+
+        mkdir -p "$HOME/.local/bin"
+
+        install -Dm755 \
+            "$SCRIPT_DIR/assets/winetricks" \
+            "$HOME/.local/bin/winetricks"
+
+        export PATH="$HOME/.local/bin:$PATH"
+
+    elif apt-cache show winetricks >/dev/null 2>&1; then
+
+        log "Installing Winetricks from repository..."
+
+        sudo apt install -y winetricks
+
+    else
+
+        warn "Bundled Winetricks not found."
+
+        log "Downloading official Winetricks..."
+
+        mkdir -p "$HOME/.local/bin"
+
+        wget -qO "$HOME/.local/bin/winetricks" \
+            https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+
+        chmod +x "$HOME/.local/bin/winetricks"
+
+        export PATH="$HOME/.local/bin:$PATH"
+
+    fi
 
 fi
+
+###########################################################################
+# Verify Commands
+###########################################################################
+
+echo
+
+title "Verifying Dependencies"
+
+COMMANDS=(
+    curl
+    wget
+    unzip
+    cabextract
+    winetricks
+)
+
+FAILED=0
+
+for CMD in "${COMMANDS[@]}"; do
+
+    if command -v "$CMD" >/dev/null 2>&1; then
+
+        success "$CMD OK"
+
+    else
+
+        error "$CMD Missing"
+
+        FAILED=1
+
+    fi
+
+done
 
 ###########################################################################
 # Finish
 ###########################################################################
 
-echo
+if [[ $FAILED -eq 0 ]]; then
 
-success "Dependencies installed successfully."
+    echo
 
-sleep 1
+    success "All dependencies installed successfully."
+
+else
+
+    echo
+
+    error "Some dependencies could not be installed."
+
+    exit 1
+
+fi
+
+sleep 2
 
 ###########################################################################
 # P3.3 Install Wine
