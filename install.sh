@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-REPO="https://raw.githubusercontent.com/longnguyen2026/zalo-wine/main"
+REPO="https://raw.githubusercontent.com/longnguyen2026/zalo-wine-v3/main"
 
 TMP_DIR="$(mktemp -d)"
 
