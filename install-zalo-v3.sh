@@ -440,9 +440,8 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     #######################################################################
 
     if ! command -v winetricks >/dev/null 2>&1; then
-
-        sudo apt install -y winetricks
-
+        error "Winetricks not found."
+        exit 1
     fi
 
     #######################################################################
