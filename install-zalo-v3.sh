@@ -163,7 +163,19 @@ success "Environment initialized."
 echo
 
 ###########################################################################
-# P3.2 Install Dependencies
+#
+# P3.2 - Install Dependencies
+#
+# Purpose :
+#   Install all required packages and bundled components.
+#
+# Includes :
+#   - Update package database
+#   - Required packages
+#   - Fonts
+#   - Bundled Winetricks
+#   - Verification
+#
 ###########################################################################
 
 echo
@@ -258,7 +270,7 @@ for FONT in "${FONTS[@]}"; do
 done
 
 ###########################################################################
-# Install Winetricks
+# Install Bundled Winetricks
 ###########################################################################
 
 echo
@@ -271,40 +283,25 @@ if command -v winetricks >/dev/null 2>&1; then
 
 else
 
-    if [[ -f "$SCRIPT_DIR/assets/winetricks" ]]; then
+    if [[ ! -f "$SCRIPT_DIR/assets/winetricks" ]]; then
 
-        log "Installing bundled Winetricks..."
+        error "Bundled Winetricks not found."
 
-        mkdir -p "$HOME/.local/bin"
-
-        install -Dm755 \
-            "$SCRIPT_DIR/assets/winetricks" \
-            "$HOME/.local/bin/winetricks"
-
-        export PATH="$HOME/.local/bin:$PATH"
-
-    elif apt-cache show winetricks >/dev/null 2>&1; then
-
-        log "Installing Winetricks from repository..."
-
-        sudo apt install -y winetricks
-
-    else
-
-        warn "Bundled Winetricks not found."
-
-        log "Downloading official Winetricks..."
-
-        mkdir -p "$HOME/.local/bin"
-
-        wget -qO "$HOME/.local/bin/winetricks" \
-            https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-
-        chmod +x "$HOME/.local/bin/winetricks"
-
-        export PATH="$HOME/.local/bin:$PATH"
+        exit 1
 
     fi
+
+    log "Installing bundled Winetricks..."
+
+    mkdir -p "$HOME/.local/bin"
+
+    install -Dm755 \
+        "$SCRIPT_DIR/assets/winetricks" \
+        "$HOME/.local/bin/winetricks"
+
+    export PATH="$HOME/.local/bin:$PATH"
+
+    success "Bundled Winetricks installed."
 
 fi
 
