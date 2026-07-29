@@ -426,15 +426,22 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     #######################################################################
     # Install Wine
     #######################################################################
-
-    log "Installing Wine packages..."
-
-    sudo apt install -y \
-        wine \
-        wine64 \
-        wine32 \
-        wine64-preloader \
-        wine32-preloader
+    log "Installing Wine..."
+    
+    if [[ "$ID" == "deepin" ]]; then
+    
+        sudo apt install -y deepin-wine11-stable
+    
+    else
+    
+        sudo apt install -y \
+            wine \
+            wine64 \
+            wine32 \
+            wine64-preloader \
+            wine32-preloader
+    
+    fi
 
     #######################################################################
     # Winetricks
