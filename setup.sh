@@ -167,6 +167,22 @@ sudo apt update
 
 log "Downloading installer..."
 
+mkdir -p "$TMP_DIR/assets"
+
+log "Downloading bundled Winetricks..."
+
+curl -fsSL \
+"$REPO/assets/winetricks" \
+-o "$TMP_DIR/assets/winetricks"
+
+chmod +x "$TMP_DIR/assets/winetricks"
+
+log "Downloading application icon..."
+
+curl -fsSL \
+"$REPO/assets/zalo.png" \
+-o "$TMP_DIR/assets/zalo.png"
+
 curl -fsSL \
 "$REPO/install-zalo-v3.sh" \
 -o "$TMP_DIR/install-zalo-v3.sh"
