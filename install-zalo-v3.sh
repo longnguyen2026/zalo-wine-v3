@@ -165,16 +165,10 @@ echo
 ###########################################################################
 #
 # P3.2 - Install Dependencies
+###########################################################################
 #
 # Purpose :
-#   Install all required packages and bundled components.
-#
-# Includes :
-#   - Update package database
-#   - Required packages
-#   - Fonts
-#   - Bundled Winetricks
-#   - Verification
+#   Install required packages and dependencies.
 #
 ###########################################################################
 
@@ -270,7 +264,7 @@ for FONT in "${FONTS[@]}"; do
 done
 
 ###########################################################################
-# Install Bundled Winetricks
+# Install Winetricks
 ###########################################################################
 
 echo
@@ -283,25 +277,31 @@ if command -v winetricks >/dev/null 2>&1; then
 
 else
 
-    if [[ ! -f "$SCRIPT_DIR/assets/winetricks" ]]; then
+    log "Installing Winetricks from APT..."
 
-        error "Bundled Winetricks not found."
+    if sudo apt install -y winetricks; then
 
-        exit 1
+        success "Winetricks installed from APT."
+
+    else
+
+        warn "APT package unavailable."
+
+        log "Downloading Winetricks from official GitHub..."
+
+        mkdir -p "$HOME/.local/bin"
+
+        curl -fsSL \
+            https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
+            -o "$HOME/.local/bin/winetricks"
+
+        chmod +x "$HOME/.local/bin/winetricks"
+
+        export PATH="$HOME/.local/bin:$PATH"
+
+        success "Winetricks installed from GitHub."
 
     fi
-
-    log "Installing bundled Winetricks..."
-
-    mkdir -p "$HOME/.local/bin"
-
-    install -Dm755 \
-        "$SCRIPT_DIR/assets/winetricks" \
-        "$HOME/.local/bin/winetricks"
-
-    export PATH="$HOME/.local/bin:$PATH"
-
-    success "Bundled Winetricks installed."
 
 fi
 
@@ -360,6 +360,7 @@ else
 fi
 
 sleep 2
+
 
 ###########################################################################
 # P3.3 Install Wine
