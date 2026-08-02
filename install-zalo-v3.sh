@@ -431,29 +431,34 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
             wine32 \
             wine64-preloader \
             wine32-preloader
+            
         then
             error "Wine installation failed."
             exit 1
         fi
+
+    #######################################################################
+    # Verify
+    #######################################################################
+        if command -v wine >/dev/null 2>&1 &&
+           command -v wineboot >/dev/null 2>&1 &&
+           command -v winecfg >/dev/null 2>&1 &&
+           command -v wineserver >/dev/null 2>&1; then
+        
+            success "Wine installation completed."
+            wine --version
+        
+        else
+        
+            error "Wine installation is incomplete."
+            error "Missing: wine / wineboot / winecfg / wineserver"
+            exit 1
+        
+        fi
+
     
     fi
 
-
-    if command -v wine >/dev/null 2>&1 &&
-       command -v wineboot >/dev/null 2>&1 &&
-       command -v winecfg >/dev/null 2>&1 &&
-       command -v wineserver >/dev/null 2>&1; then
-    
-        success "Wine installation completed."
-        wine --version
-    
-    else
-    
-        error "Wine installation is incomplete."
-        error "Missing: wine / wineboot / winecfg / wineserver"
-        exit 1
-    
-    fi
 
     #######################################################################
     # Winetricks
@@ -462,24 +467,6 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     if ! command -v winetricks >/dev/null 2>&1; then
         error "Winetricks not found."
         exit 1
-    fi
-
-    #######################################################################
-    # Verify
-    #######################################################################
-
-    if command -v wine >/dev/null 2>&1; then
-
-        success "Wine installation completed."
-
-        wine --version
-
-    else
-
-        error "Wine installation failed."
-
-        exit 1
-
     fi
 
 fi
@@ -546,10 +533,10 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
 
     for cmd in wine wineboot winecfg wineserver
     do
-        command -v "$cmd" >/dev/null 2>&1 || {
+        if ! command -v "$cmd" >/dev/null 2>&1; then
             error "$cmd not found."
             exit 1
-        }
+        fi
     done
 
     wineboot --init
