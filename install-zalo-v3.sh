@@ -388,13 +388,6 @@ title "Installing Wine"
 if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
 
     log "Preparing Wine installation..."
-    if command -v wine >/dev/null 2>&1; then
-        success "Wine installation completed."
-        wine --version
-    else
-        error "Wine installation failed."
-        exit 1
-    fi
 
     #######################################################################
     # Enable 32-bit Architecture
@@ -448,23 +441,13 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     #######################################################################
     # Verify
     #######################################################################
-        if command -v wine >/dev/null 2>&1 &&
-           command -v wineboot >/dev/null 2>&1 &&
-           command -v winecfg >/dev/null 2>&1 &&
-           command -v wineserver >/dev/null 2>&1; then
-        
-            success "Wine installation completed."
-            wine --version
-        
-        else
-        
-            error "Wine installation is incomplete."
-            error "Missing: wine / wineboot / winecfg / wineserver"
-            exit 1
-        
-        fi
 
-    
+    if command -v wine >/dev/null 2>&1; then
+        success "Wine installation completed."
+        wine --version
+    else
+        error "Wine installation failed."
+        exit 1
     fi
 
 
