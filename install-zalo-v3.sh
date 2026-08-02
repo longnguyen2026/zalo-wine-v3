@@ -182,7 +182,11 @@ title "Installing Dependencies"
 
 log "Updating package database..."
 
-sudo apt update
+if ! sudo apt update; then
+    error "APT repository error."
+    error "Please fix your APT sources before continuing."
+    exit 1
+fi
 
 ###########################################################################
 # Detect FUSE Package
@@ -374,24 +378,8 @@ title "Installing Wine"
 # Check Existing Wine
 ###########################################################################
 
-if command -v wine >/dev/null 2>&1; then
 
-    INSTALLED_WINE=$(wine --version)
 
-    success "$INSTALLED_WINE detected."
-
-    read -rp "Reinstall Wine? (y/N): " ANSWER
-
-    case "$ANSWER" in
-        y|Y|yes|YES)
-            ;;
-        *)
-            success "Skipping Wine installation."
-            SKIP_WINE_INSTALL=1
-            ;;
-    esac
-
-fi
 
 ###########################################################################
 # Install Wine
@@ -410,6 +398,7 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
         log "Adding i386 architecture..."
 
         sudo dpkg --add-architecture i386
+        sudo apt update
 
     else
 
@@ -421,8 +410,11 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     # Update
     #######################################################################
 
-    sudo apt update
-
+    if ! sudo apt update; then
+        error "APT repository error."
+        error "Please fix your APT sources before continuing."
+        exit 1
+    fi
     #######################################################################
     # Install Wine
     #######################################################################
@@ -434,14 +426,32 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     
     else
     
-        sudo apt install -y \
+        if ! sudo apt install -y \
             wine \
             wine64 \
             wine32 \
-            wine64-preloader \
-            wine32-preloader
+   #         wine64-preloader \
+   #         wine32-preloader
+            
+        then
+            error "Wine installation failed."
+            exit 1
+        fi
+
+    #######################################################################
+    # Verify
+    #######################################################################
+        if command -v wine >/dev/null 2>&1; then
+            success "Wine installation completed."
+            wine --version
+        else
+            error "Wine installation failed."
+            exit 1
+        fi
+
     
     fi
+
 
     #######################################################################
     # Winetricks
@@ -450,24 +460,6 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     if ! command -v winetricks >/dev/null 2>&1; then
         error "Winetricks not found."
         exit 1
-    fi
-
-    #######################################################################
-    # Verify
-    #######################################################################
-
-    if command -v wine >/dev/null 2>&1; then
-
-        success "Wine installation completed."
-
-        wine --version
-
-    else
-
-        error "Wine installation failed."
-
-        exit 1
-
     fi
 
 fi
@@ -532,8 +524,18 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
 
     log "Initializing Wine..."
 
-    wineboot --init
-
+    for cmd in wine wineboot winecfg wineserver
+    do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            error "$cmd not found."
+            exit 1
+        fi
+    done
+    if ! wineboot --init; then
+        error "Wine Prefix initialization failed."
+        exit 1
+    fi
+    
     wineserver -w
 
     sleep 3
@@ -829,13 +831,14 @@ log "Launching Zalo installer..."
 
 wine "$ZALO_SETUP"
 
-###########################################################################
-# Wait Installation
-###########################################################################
+while pgrep -f ZaloSetup.exe >/dev/null
+do
+    sleep 1
+done
 
-log "Waiting for installation to complete..."
-
-wineserver -w
+if command -v wineserver >/dev/null 2>&1; then
+    wineserver -w
+fi
 
 sleep 3
 
@@ -979,7 +982,7 @@ mkdir -p "$HOME/.local/share/icons"
 # Install Icon
 ###########################################################################
 
-ICON_SOURCE="$WORKDIR/zalo.png"
+ICON_SOURCE="$SCRIPT_DIR/zalo.png"
 
 if [[ -f "$ICON_SOURCE" ]]; then
 
@@ -1324,4 +1327,3 @@ echo "================================================="
 success "Done."
 
 sleep 2
-
