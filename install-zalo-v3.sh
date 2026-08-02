@@ -10,6 +10,10 @@ set -euo pipefail
 
 ###########################################################################
 # Configurable Variables
+# Cập nhật 2.8.2026 Wine đã đổi sang lệnh mới
+# sudo mkdir -pm755 /etc/apt/keyrings
+# wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key -
+#
 ###########################################################################
 
 WINEHQ_KEY_URL="https://dl.winehq.org/wine-builds/winehq.key"
