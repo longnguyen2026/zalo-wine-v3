@@ -536,11 +536,7 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
         exit 1
     fi
     
-    if command -v wineserver >/dev/null 2>&1; then
-        wineserver -w
-    else
-        sleep 2
-    fi
+    wineserver -w
 
     sleep 3
 
@@ -551,11 +547,8 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
     log "Configuring Windows Version..."
 
     winecfg -v win10
-    if command -v wineserver >/dev/null 2>&1; then
-        wineserver -w
-    else
-        sleep 2
-    fi
+
+    wineserver -w
 
     #######################################################################
     # Winetricks Packages
@@ -600,11 +593,7 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
             warn "${component} skipped."
         fi
 
-    if command -v wineserver >/dev/null 2>&1; then
         wineserver -w
-    else
-        sleep 2
-    fi
 
     done
 
@@ -639,11 +628,8 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
     # Finish
     #######################################################################
 
-    if command -v wineserver >/dev/null 2>&1; then
-        wineserver -w
-    else
-        sleep 2
-    fi
+    wineserver -w
+
     success "Wine Prefix created successfully."
 
 fi
