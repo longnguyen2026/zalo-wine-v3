@@ -388,6 +388,15 @@ title "Installing Wine"
 if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
 
     log "Preparing Wine installation..."
+    if command -v wine >/dev/null &&
+       command -v wineboot >/dev/null &&
+       command -v winecfg >/dev/null &&
+       command -v wineserver >/dev/null; then
+    
+        success "Wine already installed."
+        wine --version
+        SKIP_WINE_INSTALL=1
+    fi
 
     #######################################################################
     # Enable 32-bit Architecture
@@ -398,6 +407,7 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
         log "Adding i386 architecture..."
 
         sudo dpkg --add-architecture i386
+        sudo apt update
 
     else
 
@@ -538,9 +548,11 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
             exit 1
         fi
     done
-
-    wineboot --init
-
+    if ! wineboot --init; then
+        error "Wine Prefix initialization failed."
+        exit 1
+    fi
+    
     wineserver -w
 
     sleep 3
