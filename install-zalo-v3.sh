@@ -367,23 +367,12 @@ sleep 2
 
 
 ###########################################################################
-# P3.3 Install Wine
+# P3.3 Install Wine (Updated to Official WineHQ Method)
 ###########################################################################
 
 echo
 
 title "Installing Wine"
-
-###########################################################################
-# Check Existing Wine
-###########################################################################
-
-
-
-
-###########################################################################
-# Install Wine
-###########################################################################
 
 if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
 
@@ -396,9 +385,7 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     if ! dpkg --print-foreign-architectures | grep -qx "i386"; then
 
         log "Adding i386 architecture..."
-
         sudo dpkg --add-architecture i386
-        sudo apt update
 
     else
 
@@ -407,54 +394,81 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     fi
 
     #######################################################################
-    # Update
+    # Setup WineHQ Keyrings & Repository
     #######################################################################
 
-    if ! sudo apt update; then
-        error "APT repository error."
-        error "Please fix your APT sources before continuing."
+    if [[ "$ID" == "deepin" ]]; then
+
+        log "Installing Deepin Wine..."
+        sudo apt update
+        sudo apt install -y deepin-wine11-stable || sudo apt install -y deepin-wine
+
+    else
+
+        log "Setting up official WineHQ repository..."
+
+        # 1. Tạo thư mục chứa keyrings theo tiêu chuẩn FHS mới
+        sudo mkdir -pm755 /etc/apt/keyrings
+
+        # 2. Tải & dearmor GPG key
+        if [[ ! -f /etc/apt/keyrings/winehq-archive.key ]]; then
+            log "Downloading WineHQ GPG Key..."
+            wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key
+        fi
+
+        # 3. Tải file sources tương ứng với Distro Codename (Ubuntu / Debian / Mint)
+        UBUNTU_CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
+        
+        # Xử lý trường hợp Linux Mint hoặc Ubuntu/Debian derivative
+        if [[ -z "$UBUNTU_CODENAME" ]]; then
+            UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "")
+        fi
+
+        SOURCES_URL="https://dl.winehq.org/wine-builds/ubuntu/dists/${UBUNTU_CODENAME}/winehq-${UBUNTU_CODENAME}.sources"
+
+        log "Adding WineHQ repository sources for ${UBUNTU_CODENAME}..."
+        
+        if wget -q --spider "$SOURCES_URL"; then
+            sudo wget -NP /etc/apt/sources.list.d/ "$SOURCES_URL"
+        else
+            warn "Official WineHQ sources not found for '${UBUNTU_CODENAME}'. Falling back to distro default Wine..."
+        fi
+
+        # Update APT
+        log "Updating package database..."
+        if ! sudo apt update; then
+            error "APT repository error."
+            error "Please fix your APT sources before continuing."
+            exit 1
+        fi
+
+        #######################################################################
+        # Install WineHQ Stable Package
+        #######################################################################
+        log "Installing WineHQ Stable..."
+        
+        if sudo apt install -y --install-recommends winehq-stable; then
+            success "WineHQ Stable installed successfully."
+        else
+            warn "winehq-stable failed, falling back to standard wine package..."
+            sudo apt install -y wine wine64 wine32
+        fi
+
+    fi
+
+    #######################################################################
+    # Verify Wine Installation
+    #######################################################################
+    if command -v wine >/dev/null 2>&1; then
+        success "Wine installation completed."
+        wine --version
+    else
+        error "Wine installation failed."
         exit 1
     fi
-    #######################################################################
-    # Install Wine
-    #######################################################################
-    log "Installing Wine..."
-    
-    if [[ "$ID" == "deepin" ]]; then
-    
-        sudo apt install -y deepin-wine11-stable
-    
-    else
-    
-        if ! sudo apt install -y \
-            wine \
-            wine64 \
-            wine32 \
-   #         wine64-preloader \
-   #         wine32-preloader
-            
-        then
-            error "Wine installation failed."
-            exit 1
-        fi
 
     #######################################################################
-    # Verify
-    #######################################################################
-        if command -v wine >/dev/null 2>&1; then
-            success "Wine installation completed."
-            wine --version
-        else
-            error "Wine installation failed."
-            exit 1
-        fi
-
-    
-    fi
-
-
-    #######################################################################
-    # Winetricks
+    # Winetricks Check
     #######################################################################
 
     if ! command -v winetricks >/dev/null 2>&1; then
@@ -464,15 +478,12 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
 
 fi
 
-###########################################################################
-# Finish
-###########################################################################
-
 echo
 
 success "Wine is ready."
 
 sleep 1
+
 
 ###########################################################################
 # P3.4 Create Wine Prefix
