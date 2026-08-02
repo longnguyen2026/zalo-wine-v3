@@ -2,18 +2,27 @@
 #
 # ==========================================================
 # Zalo Wine Installer
-# Version : 3.0
+# Version : 3.2 (Fixed WineHQ & Winetricks Components)
 # Author  : Long Nguyen
 # ==========================================================
 
 set -euo pipefail
+
 ###########################################################################
-# Script Directory
+# Configurable Variables
+###########################################################################
+
+WINEHQ_KEY_URL="https://dl.winehq.org/wine-builds/winehq.key"
+WINEHQ_KEY_FILE="/etc/apt/keyrings/winehq-archive.key"
+WINEHQ_PKG_NAME="winehq-stable"
+
+###########################################################################
+# Script Directory & Defaults
 ###########################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-SCRIPT_VERSION="3.0"
+SCRIPT_VERSION="3.2"
 
 PREFIX="$HOME/.wine-zalo"
 
@@ -61,19 +70,14 @@ error() {
 }
 
 title() {
-
-echo
-
-echo -e "${BLUE}====================================================${NC}"
-echo -e "${CYAN}$1${NC}"
-echo -e "${BLUE}====================================================${NC}"
-
+    echo
+    echo -e "${BLUE}====================================================${NC}"
+    echo -e "${CYAN}$1${NC}"
+    echo -e "${BLUE}====================================================${NC}"
 }
 
 success() {
-
-echo -e "${GREEN}✔ $1${NC}"
-
+    echo -e "${GREEN}✔ $1${NC}"
 }
 
 ###########################################################################
@@ -86,7 +90,7 @@ cat << "EOF"
 
 =========================================================
               ZALO WINE INSTALLER
-                    Version 3.0
+                    Version 3.2
 =========================================================
 
 Author : Long Nguyen
@@ -110,75 +114,37 @@ Wine Prefix :
 EOF
 
 ###########################################################################
-# Detect Distro Again (for information)
+# Detect System Information
 ###########################################################################
 
 source /etc/os-release
 
 DISTRO="$ID"
-VERSION="$VERSION_ID"
+VERSION="${VERSION_ID:-}"
 
 log "Detected Linux : ${PRETTY_NAME}"
 
-###########################################################################
-# Detect Desktop
-###########################################################################
-
 DESKTOP="${XDG_CURRENT_DESKTOP:-Unknown}"
-
 log "Desktop : $DESKTOP"
 
-###########################################################################
-# Detect CPU
-###########################################################################
-
 ARCH=$(uname -m)
-
 log "Architecture : $ARCH"
 
-###########################################################################
-# Check Existing Prefix
-###########################################################################
-
 if [[ -d "$PREFIX" ]]; then
-
     warn "Existing Wine prefix found."
-
 fi
 
-###########################################################################
-# Create Working Directory
-###########################################################################
-
 mkdir -p "$WORKDIR"
-
 mkdir -p "$ICON_DIR"
 
-###########################################################################
-# Ready
-###########################################################################
-
 success "Environment initialized."
-
 echo
 
 ###########################################################################
-#
 # P3.2 - Install Dependencies
 ###########################################################################
-#
-# Purpose :
-#   Install required packages and dependencies.
-#
-###########################################################################
-
-echo
 
 title "Installing Dependencies"
-
-###########################################################################
-# Update Package Database
-###########################################################################
 
 log "Updating package database..."
 
@@ -188,19 +154,11 @@ if ! sudo apt update; then
     exit 1
 fi
 
-###########################################################################
-# Detect FUSE Package
-###########################################################################
-
 if apt-cache show libfuse2t64 >/dev/null 2>&1; then
     FUSE_PACKAGE="libfuse2t64"
 else
     FUSE_PACKAGE="libfuse2"
 fi
-
-###########################################################################
-# Required Packages
-###########################################################################
 
 PACKAGES=(
     curl
@@ -215,24 +173,13 @@ PACKAGES=(
     "$FUSE_PACKAGE"
 )
 
-###########################################################################
-# Install Packages
-###########################################################################
-
 for PKG in "${PACKAGES[@]}"; do
-
     if dpkg -s "$PKG" >/dev/null 2>&1; then
-
         success "$PKG already installed."
-
     else
-
         log "Installing $PKG..."
-
         sudo apt install -y "$PKG"
-
     fi
-
 done
 
 ###########################################################################
@@ -240,7 +187,6 @@ done
 ###########################################################################
 
 echo
-
 title "Installing Fonts"
 
 FONTS=(
@@ -251,20 +197,13 @@ FONTS=(
 )
 
 for FONT in "${FONTS[@]}"; do
-
     if dpkg -s "$FONT" >/dev/null 2>&1; then
-
         success "$FONT already installed."
-
     else
-
         log "Installing $FONT..."
-
         sudo apt install -y "$FONT" || \
         warn "$FONT is unavailable on this distribution."
-
     fi
-
 done
 
 ###########################################################################
@@ -272,25 +211,17 @@ done
 ###########################################################################
 
 echo
-
 title "Installing Winetricks"
 
 if command -v winetricks >/dev/null 2>&1; then
-
     success "Winetricks already installed."
-
 else
-
     log "Installing Winetricks from APT..."
 
     if sudo apt install -y winetricks; then
-
         success "Winetricks installed from APT."
-
     else
-
         warn "APT package unavailable."
-
         log "Downloading Winetricks from official GitHub..."
 
         mkdir -p "$HOME/.local/bin"
@@ -304,9 +235,7 @@ else
         export PATH="$HOME/.local/bin:$PATH"
 
         success "Winetricks installed from GitHub."
-
     fi
-
 fi
 
 ###########################################################################
@@ -314,7 +243,6 @@ fi
 ###########################################################################
 
 echo
-
 title "Verifying Dependencies"
 
 COMMANDS=(
@@ -328,98 +256,58 @@ COMMANDS=(
 FAILED=0
 
 for CMD in "${COMMANDS[@]}"; do
-
     if command -v "$CMD" >/dev/null 2>&1; then
-
         success "$CMD OK"
-
     else
-
         error "$CMD Missing"
-
         FAILED=1
-
     fi
-
 done
 
-###########################################################################
-# Finish
-###########################################################################
-
 if [[ $FAILED -eq 0 ]]; then
-
     echo
-
     success "All dependencies installed successfully."
-
 else
-
     echo
-
     error "Some dependencies could not be installed."
-
     exit 1
-
 fi
 
 sleep 2
 
-
 ###########################################################################
-# P3.3 Install Wine (Updated to Official WineHQ Method)
+# P3.3 Install Wine (Updated Official Method)
 ###########################################################################
 
 echo
-
 title "Installing Wine"
 
 if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
 
     log "Preparing Wine installation..."
 
-    #######################################################################
-    # Enable 32-bit Architecture
-    #######################################################################
-
     if ! dpkg --print-foreign-architectures | grep -qx "i386"; then
-
         log "Adding i386 architecture..."
         sudo dpkg --add-architecture i386
-
     else
-
         success "i386 architecture already enabled."
-
     fi
 
-    #######################################################################
-    # Setup WineHQ Keyrings & Repository
-    #######################################################################
-
     if [[ "$ID" == "deepin" ]]; then
-
         log "Installing Deepin Wine..."
         sudo apt update
         sudo apt install -y deepin-wine11-stable || sudo apt install -y deepin-wine
-
     else
-
         log "Setting up official WineHQ repository..."
 
-        # 1. Tạo thư mục chứa keyrings theo tiêu chuẩn FHS mới
         sudo mkdir -pm755 /etc/apt/keyrings
 
-        # 2. Tải & dearmor GPG key
-        if [[ ! -f /etc/apt/keyrings/winehq-archive.key ]]; then
+        if [[ ! -f "$WINEHQ_KEY_FILE" ]]; then
             log "Downloading WineHQ GPG Key..."
-            wget -O - https://dl.winehq.org/wine-builds/winehq.key | sudo gpg --dearmor -o /etc/apt/keyrings/winehq-archive.key
+            wget -O - "$WINEHQ_KEY_URL" | sudo gpg --dearmor -o "$WINEHQ_KEY_FILE"
         fi
 
-        # 3. Tải file sources tương ứng với Distro Codename (Ubuntu / Debian / Mint)
-        UBUNTU_CODENAME="${UBUNTU_CODENAME:-$VERSION_CODENAME}"
-        
-        # Xử lý trường hợp Linux Mint hoặc Ubuntu/Debian derivative
+        UBUNTU_CODENAME="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
         if [[ -z "$UBUNTU_CODENAME" ]]; then
             UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || echo "")
         fi
@@ -434,7 +322,6 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
             warn "Official WineHQ sources not found for '${UBUNTU_CODENAME}'. Falling back to distro default Wine..."
         fi
 
-        # Update APT
         log "Updating package database..."
         if ! sudo apt update; then
             error "APT repository error."
@@ -442,34 +329,28 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
             exit 1
         fi
 
-        #######################################################################
-        # Install WineHQ Stable Package
-        #######################################################################
-        log "Installing WineHQ Stable..."
+        log "Installing $WINEHQ_PKG_NAME..."
         
-        if sudo apt install -y --install-recommends winehq-stable; then
-            success "WineHQ Stable installed successfully."
+        if sudo apt install -y --install-recommends "$WINEHQ_PKG_NAME"; then
+            success "$WINEHQ_PKG_NAME installed successfully."
         else
-            warn "winehq-stable failed, falling back to standard wine package..."
+            warn "$WINEHQ_PKG_NAME failed, falling back to standard wine package..."
             sudo apt install -y wine wine64 wine32
         fi
-
     fi
 
-    #######################################################################
-    # Verify Wine Installation
-    #######################################################################
-  
-    # 1. Làm sạch hash table của Bash để nhận biết binary mới ở /usr/bin hoặc /opt
+    # Làm sạch hash table và ép nhận PATH mới
     hash -r 2>/dev/null || true
 
-    # 2. Nếu chưa nhận PATH, tự tạo symlink hoặc add /opt/wine-stable/bin vào PATH khẩn cấp
-    if [ -d "/opt/wine-stable/bin" ]; then
+    if [[ -d "/opt/wine-stable/bin" ]]; then
         export PATH="/opt/wine-stable/bin:$PATH"
+    elif [[ -d "/opt/wine-devel/bin" ]]; then
+        export PATH="/opt/wine-devel/bin:$PATH"
+    elif [[ -d "/opt/wine-staging/bin" ]]; then
+        export PATH="/opt/wine-staging/bin:$PATH"
     fi
 
-    # 3. Kiểm tra lại lệnh wine
-    if command -v wine >/dev/null 2>&1 || [ -x "/opt/wine-stable/bin/wine" ]; then
+    if command -v wine >/dev/null 2>&1 || [[ -x "/opt/wine-stable/bin/wine" ]]; then
         success "Wine installation completed."
         wine --version
     else
@@ -477,70 +358,40 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
         exit 1
     fi
 
-
-    #######################################################################
-    # Winetricks Check
-    #######################################################################
-
     if ! command -v winetricks >/dev/null 2>&1; then
         error "Winetricks not found."
         exit 1
     fi
-
 fi
 
 echo
-
 success "Wine is ready."
-
 sleep 1
-
 
 ###########################################################################
 # P3.4 Create Wine Prefix
 ###########################################################################
 
 echo
-
 title "Creating Wine Prefix"
 
 export WINEPREFIX="$PREFIX"
 export WINEARCH=win64
 
-###########################################################################
-# Existing Prefix
-###########################################################################
-
 if [[ -d "$WINEPREFIX" ]]; then
-
     warn "Existing Wine Prefix found."
-
     read -rp "Recreate Wine Prefix? (y/N): " ANSWER
-
     case "$ANSWER" in
         y|Y|yes|YES)
-
             log "Removing existing Wine Prefix..."
-
             rm -rf "$WINEPREFIX"
-
             ;;
-
         *)
-
             success "Using existing Wine Prefix."
-
             SKIP_PREFIX=1
-
             ;;
-
     esac
-
 fi
-
-###########################################################################
-# Create Prefix
-###########################################################################
 
 if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
 
@@ -553,75 +404,42 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
             exit 1
         fi
     done
+
     if ! wineboot --init; then
         error "Wine Prefix initialization failed."
         exit 1
     fi
     
     wineserver -w
-
     sleep 3
 
-    #######################################################################
-    # Windows Version
-    #######################################################################
-
     log "Configuring Windows Version..."
-
     winecfg -v win10
-
     wineserver -w
-
-    #######################################################################
-    # Winetricks Packages
-    #######################################################################
 
     title "Installing Wine Components"
 
+    # Đã tinh chỉnh lại danh sách components tối ưu cho Zalo
     COMPONENTS=(
-
         corefonts
         tahoma
-
         vcrun2015
         vcrun2017
         vcrun2019
         vcrun2022
-
         gdiplus
         riched20
-        riched30
-
-        msxml3
-        msxml6
-
-        ole32
-        oleaut32
-
-        wininet
-        urlmon
-
-        quartz
-
     )
 
     for component in "${COMPONENTS[@]}"; do
-
         log "Installing ${component}..."
-
         if winetricks -q "$component"; then
             success "${component} installed."
         else
             warn "${component} skipped."
         fi
-
         wineserver -w
-
     done
-
-    #######################################################################
-    # Registry Tweaks
-    #######################################################################
 
     title "Optimizing Wine"
 
@@ -646,19 +464,9 @@ if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
         /d -all \
         /f >/dev/null 2>&1 || true
 
-    #######################################################################
-    # Finish
-    #######################################################################
-
     wineserver -w
-
     success "Wine Prefix created successfully."
-
 fi
-
-###########################################################################
-# Verify
-###########################################################################
 
 echo
 
@@ -676,7 +484,6 @@ sleep 1
 ###########################################################################
 
 echo
-
 title "Searching for Zalo Installer"
 
 SEARCH_PATHS=(
@@ -689,14 +496,8 @@ SEARCH_PATHS=(
 
 FOUND_FILES=()
 
-###########################################################################
-# Search Installer
-###########################################################################
-
 for DIR in "${SEARCH_PATHS[@]}"; do
-
     [[ -d "$DIR" ]] || continue
-
     while IFS= read -r FILE; do
         FOUND_FILES+=("$FILE")
     done < <(
@@ -706,17 +507,10 @@ for DIR in "${SEARCH_PATHS[@]}"; do
             -o -iname "zalosetup.exe" \
         \) 2>/dev/null
     )
-
 done
 
-###########################################################################
-# No Installer Found
-###########################################################################
-
 if [[ ${#FOUND_FILES[@]} -eq 0 ]]; then
-
     error "ZaloSetup.exe not found."
-
     echo
     echo "Please download the latest Zalo installer"
     echo "and place it in one of these folders:"
@@ -726,98 +520,48 @@ if [[ ${#FOUND_FILES[@]} -eq 0 ]]; then
     echo "  $HOME/Documents"
     echo
     exit 1
-
 fi
 
-###########################################################################
-# One Installer Found
-###########################################################################
-
 if [[ ${#FOUND_FILES[@]} -eq 1 ]]; then
-
     ZALO_SETUP="${FOUND_FILES[0]}"
-
     success "Installer found."
-
     log "$ZALO_SETUP"
-
 else
-
-###########################################################################
-# Multiple Installers
-###########################################################################
-
     echo
-
     warn "Multiple installers found."
-
     echo
-
     for i in "${!FOUND_FILES[@]}"; do
         printf "%2d) %s\n" $((i+1)) "${FOUND_FILES[$i]}"
     done
-
     echo
-
     while true; do
-
         read -rp "Select installer [1-${#FOUND_FILES[@]}]: " CHOICE
-
         if [[ "$CHOICE" =~ ^[0-9]+$ ]] &&
            (( CHOICE >= 1 && CHOICE <= ${#FOUND_FILES[@]} )); then
-
             ZALO_SETUP="${FOUND_FILES[$((CHOICE-1))]}"
-
             break
-
         fi
-
     done
-
 fi
-
-###########################################################################
-# Verify Installer
-###########################################################################
 
 FILE_SIZE=$(stat -c%s "$ZALO_SETUP" 2>/dev/null || echo 0)
 
 if (( FILE_SIZE < 1000000 )); then
-
     error "Installer file is too small."
-
     exit 1
-
 fi
-
-###########################################################################
-# Verify PE Executable
-###########################################################################
 
 if command -v file >/dev/null 2>&1; then
-
     if ! file "$ZALO_SETUP" | grep -Eq "PE32|MS-DOS executable"; then
-
         error "This is not a valid Windows installer."
-
         exit 1
-
     fi
-
 fi
 
-###########################################################################
-# Finish
-###########################################################################
-
 echo
-
 success "Using installer:"
-
 echo "$ZALO_SETUP"
-
 echo
-
 success "Installer verification completed."
 
 sleep 1
@@ -827,27 +571,15 @@ sleep 1
 ###########################################################################
 
 echo
-
 title "Installing Zalo"
 
 export WINEPREFIX="$PREFIX"
 export WINEARCH=win64
 
-###########################################################################
-# Verify Installer
-###########################################################################
-
 if [[ ! -f "$ZALO_SETUP" ]]; then
-
     error "Zalo installer not found."
-
     exit 1
-
 fi
-
-###########################################################################
-# Launch Installer
-###########################################################################
 
 log "Launching Zalo installer..."
 
@@ -864,10 +596,6 @@ fi
 
 sleep 3
 
-###########################################################################
-# Search Zalo.exe
-###########################################################################
-
 title "Searching Installed Zalo"
 
 ZALO_EXE=$(find "$PREFIX/drive_c" \
@@ -876,25 +604,12 @@ ZALO_EXE=$(find "$PREFIX/drive_c" \
     2>/dev/null \
     | head -n1)
 
-###########################################################################
-# Verify Installation
-###########################################################################
-
 if [[ -z "$ZALO_EXE" ]]; then
-
     error "Unable to locate Zalo.exe"
-
     echo
-
     echo "Installation may have failed or was cancelled."
-
     exit 1
-
 fi
-
-###########################################################################
-# Search Uninstaller
-###########################################################################
 
 UNINSTALL_EXE=$(find "$PREFIX/drive_c" \
     -type f \
@@ -905,10 +620,6 @@ UNINSTALL_EXE=$(find "$PREFIX/drive_c" \
     2>/dev/null \
     | head -n1)
 
-###########################################################################
-# Save Information
-###########################################################################
-
 mkdir -p "$WORKDIR"
 
 echo "$ZALO_EXE" > "$WORKDIR/zalo.path"
@@ -918,14 +629,8 @@ if [[ -n "$UNINSTALL_EXE" ]]; then
 fi
 
 echo "$SCRIPT_VERSION" > "$WORKDIR/version"
-
 echo "$PREFIX" > "$WORKDIR/prefix.path"
-
 wine --version > "$WORKDIR/wine.version"
-
-###########################################################################
-# Install Log
-###########################################################################
 
 cat > "$WORKDIR/install.log" <<EOF
 =========================================
@@ -933,36 +638,21 @@ Zalo Wine Installation
 =========================================
 
 Date       : $(date)
-
 User       : $USER
-
 Linux      : ${PRETTY_NAME:-Unknown}
-
 Desktop    : ${XDG_CURRENT_DESKTOP:-Unknown}
-
 Wine       : $(wine --version)
-
 Prefix     : $PREFIX
-
 Executable : $ZALO_EXE
-
 Version    : $SCRIPT_VERSION
-
 Status     : SUCCESS
 
 =========================================
 EOF
 
-###########################################################################
-# Display Summary
-###########################################################################
-
 echo
-
 success "Installation completed successfully."
-
 echo
-
 echo "========================================="
 echo "Installation Summary"
 echo "========================================="
@@ -992,7 +682,6 @@ sleep 2
 ###########################################################################
 
 echo
-
 title "Creating Application Launchers"
 
 APP_DIR="$HOME/.local/share/applications"
@@ -1000,27 +689,14 @@ APP_DIR="$HOME/.local/share/applications"
 mkdir -p "$APP_DIR"
 mkdir -p "$HOME/.local/share/icons"
 
-###########################################################################
-# Install Icon
-###########################################################################
-
 ICON_SOURCE="$SCRIPT_DIR/zalo.png"
 
 if [[ -f "$ICON_SOURCE" ]]; then
-
     cp -f "$ICON_SOURCE" "$ICON_FILE"
-
     success "Application icon installed."
-
 else
-
     warn "Icon file not found."
-
 fi
-
-###########################################################################
-# Launcher : Zalo
-###########################################################################
 
 cat > "$APP_DIR/zalo.desktop" <<EOF
 [Desktop Entry]
@@ -1036,10 +712,6 @@ Categories=Network;InstantMessaging;
 StartupWMClass=Zalo.exe
 EOF
 
-###########################################################################
-# Launcher : Safe Mode
-###########################################################################
-
 cat > "$APP_DIR/zalo-safe.desktop" <<EOF
 [Desktop Entry]
 Version=1.0
@@ -1051,10 +723,6 @@ Icon=$ICON_FILE
 Terminal=false
 Categories=Utility;
 EOF
-
-###########################################################################
-# Launcher : Wine Configuration
-###########################################################################
 
 cat > "$APP_DIR/zalo-winecfg.desktop" <<EOF
 [Desktop Entry]
@@ -1068,10 +736,6 @@ Terminal=false
 Categories=Settings;
 EOF
 
-###########################################################################
-# Launcher : Wine Uninstaller
-###########################################################################
-
 cat > "$APP_DIR/zalo-uninstall.desktop" <<EOF
 [Desktop Entry]
 Version=1.0
@@ -1084,76 +748,35 @@ Terminal=false
 Categories=Utility;
 EOF
 
-###########################################################################
-# Permissions
-###########################################################################
-
 chmod +x "$APP_DIR"/*.desktop
-
-###########################################################################
-# Desktop Shortcut
-###########################################################################
 
 DESKTOP_DIR="$HOME/Desktop"
 
 if [[ -d "$DESKTOP_DIR" ]]; then
-
     cp "$APP_DIR/zalo.desktop" "$DESKTOP_DIR/"
-
     chmod +x "$DESKTOP_DIR/zalo.desktop"
-
 fi
 
-###########################################################################
-# Trust Desktop Shortcut (Deepin / GNOME)
-###########################################################################
-
 if command -v gio >/dev/null 2>&1; then
-
     gio set \
         "$DESKTOP_DIR/zalo.desktop" \
         metadata::trusted true \
         >/dev/null 2>&1 || true
-
 fi
-
-###########################################################################
-# Refresh Desktop Database
-###########################################################################
 
 if command -v update-desktop-database >/dev/null 2>&1; then
-
     update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
-
 fi
-
-###########################################################################
-# KDE Plasma
-###########################################################################
 
 if command -v kbuildsycoca6 >/dev/null 2>&1; then
-
     kbuildsycoca6 >/dev/null 2>&1 || true
-
 elif command -v kbuildsycoca5 >/dev/null 2>&1; then
-
     kbuildsycoca5 >/dev/null 2>&1 || true
-
 fi
-
-###########################################################################
-# Refresh Icon Cache
-###########################################################################
 
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
-
     gtk-update-icon-cache "$HOME/.local/share/icons" >/dev/null 2>&1 || true
-
 fi
-
-###########################################################################
-# Save Launcher Information
-###########################################################################
 
 cat > "$WORKDIR/launchers.list" <<EOF
 $APP_DIR/zalo.desktop
@@ -1162,18 +785,10 @@ $APP_DIR/zalo-winecfg.desktop
 $APP_DIR/zalo-uninstall.desktop
 EOF
 
-###########################################################################
-# Summary
-###########################################################################
-
 echo
-
 success "Launchers created successfully."
-
 echo
-
 echo "Installed Launchers"
-
 echo "  ✔ Zalo"
 echo "  ✔ Zalo (Safe Mode)"
 echo "  ✔ Zalo Wine Configuration"
@@ -1182,16 +797,11 @@ echo "  ✔ Uninstall Zalo"
 sleep 2
 
 ###########################################################################
-# P3.8 Post Installation
+# P3.8 Finalize & Set Environment
 ###########################################################################
 
 echo
-
 title "Finalizing Installation"
-
-###########################################################################
-# Verify Installation
-###########################################################################
 
 [[ -f "$ZALO_EXE" ]] || {
     error "Zalo executable not found."
@@ -1202,15 +812,11 @@ title "Finalizing Installation"
     warn "Desktop launcher missing."
 }
 
-###########################################################################
-# Create User Command Directory
-###########################################################################
-
 mkdir -p "$HOME/.local/bin"
 
-###########################################################################
-# Command : zalo
-###########################################################################
+if [[ -d "/opt/wine-stable/bin" ]] && ! grep -q "/opt/wine-stable/bin" "$HOME/.bashrc"; then
+    echo 'export PATH="/opt/wine-stable/bin:$PATH"' >> "$HOME/.bashrc"
+fi
 
 cat > "$HOME/.local/bin/zalo" <<EOF
 #!/usr/bin/env bash
@@ -1224,10 +830,6 @@ EOF
 
 chmod +x "$HOME/.local/bin/zalo"
 
-###########################################################################
-# Command : zalo-winecfg
-###########################################################################
-
 cat > "$HOME/.local/bin/zalo-winecfg" <<EOF
 #!/usr/bin/env bash
 
@@ -1237,10 +839,6 @@ exec winecfg
 EOF
 
 chmod +x "$HOME/.local/bin/zalo-winecfg"
-
-###########################################################################
-# Command : zalo-uninstaller
-###########################################################################
 
 cat > "$HOME/.local/bin/zalo-uninstaller" <<EOF
 #!/usr/bin/env bash
@@ -1252,17 +850,12 @@ EOF
 
 chmod +x "$HOME/.local/bin/zalo-uninstaller"
 
-###########################################################################
-# Command Placeholders
-###########################################################################
-
 for CMD in \
     zalo-repair \
     zalo-backup \
     zalo-restore \
     zalo-diagnostic
 do
-
 cat > "$HOME/.local/bin/$CMD" <<EOF
 #!/usr/bin/env bash
 
@@ -1271,14 +864,8 @@ echo "$CMD is not installed yet."
 echo "Please install the Zalo Tools package."
 echo
 EOF
-
 chmod +x "$HOME/.local/bin/$CMD"
-
 done
-
-###########################################################################
-# PATH Check
-###########################################################################
 
 case ":$PATH:" in
     *":$HOME/.local/bin:"*)
@@ -1289,10 +876,6 @@ case ":$PATH:" in
         ;;
 esac
 
-###########################################################################
-# Status File
-###########################################################################
-
 cat > "$WORKDIR/status" <<EOF
 STATUS=SUCCESS
 DATE=$(date +"%F %T")
@@ -1301,27 +884,15 @@ EXECUTABLE=$ZALO_EXE
 LAUNCHER=$DESKTOP_FILE
 EOF
 
-###########################################################################
-# Launch Question
-###########################################################################
-
 if command -v zenity >/dev/null 2>&1; then
-
     if zenity \
         --question \
         --width=420 \
         --title="Zalo Wine Installer" \
         --text="Zalo has been installed successfully.\n\nLaunch Zalo now?"; then
-
         zalo &
-
     fi
-
 fi
-
-###########################################################################
-# Summary
-###########################################################################
 
 echo
 echo "================================================="
