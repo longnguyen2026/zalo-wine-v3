@@ -378,23 +378,8 @@ title "Installing Wine"
 # Check Existing Wine
 ###########################################################################
 
-if command -v wine >/dev/null 2>&1 &&
-   command -v wineboot >/dev/null 2>&1 &&
-   command -v winecfg >/dev/null 2>&1 &&
-   command -v wineserver >/dev/null 2>&1; then
 
-    success "Wine installation completed."
 
-    wine --version
-
-else
-
-    error "Wine installation is incomplete."
-    error "Missing: wine / wineboot / winecfg / wineserver"
-
-    exit 1
-
-fi
 
 ###########################################################################
 # Install Wine
@@ -440,12 +425,33 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     
     else
     
-        sudo apt install -y \
+        if ! sudo apt install -y \
             wine \
             wine64 \
             wine32 \
             wine64-preloader \
             wine32-preloader
+        then
+            error "Wine installation failed."
+            exit 1
+        fi
+    
+    fi
+
+
+    if command -v wine >/dev/null 2>&1 &&
+       command -v wineboot >/dev/null 2>&1 &&
+       command -v winecfg >/dev/null 2>&1 &&
+       command -v wineserver >/dev/null 2>&1; then
+    
+        success "Wine installation completed."
+        wine --version
+    
+    else
+    
+        error "Wine installation is incomplete."
+        error "Missing: wine / wineboot / winecfg / wineserver"
+        exit 1
     
     fi
 
