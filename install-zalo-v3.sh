@@ -459,13 +459,24 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     #######################################################################
     # Verify Wine Installation
     #######################################################################
-    if command -v wine >/dev/null 2>&1; then
+  
+    # 1. Làm sạch hash table của Bash để nhận biết binary mới ở /usr/bin hoặc /opt
+    hash -r 2>/dev/null || true
+
+    # 2. Nếu chưa nhận PATH, tự tạo symlink hoặc add /opt/wine-stable/bin vào PATH khẩn cấp
+    if [ -d "/opt/wine-stable/bin" ]; then
+        export PATH="/opt/wine-stable/bin:$PATH"
+    fi
+
+    # 3. Kiểm tra lại lệnh wine
+    if command -v wine >/dev/null 2>&1 || [ -x "/opt/wine-stable/bin/wine" ]; then
         success "Wine installation completed."
         wine --version
     else
         error "Wine installation failed."
         exit 1
     fi
+
 
     #######################################################################
     # Winetricks Check
