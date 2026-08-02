@@ -429,8 +429,8 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
             wine \
             wine64 \
             wine32 \
-            wine64-preloader \
-            wine32-preloader
+   #         wine64-preloader \
+   #         wine32-preloader
             
         then
             error "Wine installation failed."
