@@ -182,7 +182,11 @@ title "Installing Dependencies"
 
 log "Updating package database..."
 
-sudo apt update
+if ! sudo apt update; then
+    error "APT repository error."
+    error "Please fix your APT sources before continuing."
+    exit 1
+fi
 
 ###########################################################################
 # Detect FUSE Package
@@ -421,8 +425,11 @@ if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
     # Update
     #######################################################################
 
-    sudo apt update
-
+    if ! sudo apt update; then
+        error "APT repository error."
+        error "Please fix your APT sources before continuing."
+        exit 1
+    fi
     #######################################################################
     # Install Wine
     #######################################################################
