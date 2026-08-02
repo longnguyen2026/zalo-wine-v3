@@ -82,9 +82,16 @@ if ! command -v curl >/dev/null; then
 
     warn "Installing curl..."
 
-    sudo apt update
+    if ! sudo apt update; then
+        error "APT repository error."
+        error "Please fix your APT sources and run again."
+        exit 1
+    fi
 
-    sudo apt install -y curl
+    if ! sudo apt install -y curl; then
+        error "Failed to install curl."
+        exit 1
+    fi
 
 fi
 
