@@ -378,22 +378,21 @@ title "Installing Wine"
 # Check Existing Wine
 ###########################################################################
 
-if command -v wine >/dev/null 2>&1; then
+if command -v wine >/dev/null 2>&1 &&
+   command -v wineboot >/dev/null 2>&1 &&
+   command -v winecfg >/dev/null 2>&1 &&
+   command -v wineserver >/dev/null 2>&1; then
 
-    INSTALLED_WINE=$(wine --version)
+    success "Wine installation completed."
 
-    success "$INSTALLED_WINE detected."
+    wine --version
 
-    read -rp "Reinstall Wine? (y/N): " ANSWER
+else
 
-    case "$ANSWER" in
-        y|Y|yes|YES)
-            ;;
-        *)
-            success "Skipping Wine installation."
-            SKIP_WINE_INSTALL=1
-            ;;
-    esac
+    error "Wine installation is incomplete."
+    error "Missing: wine / wineboot / winecfg / wineserver"
+
+    exit 1
 
 fi
 
@@ -538,6 +537,14 @@ fi
 if [[ "${SKIP_PREFIX:-0}" != "1" ]]; then
 
     log "Initializing Wine..."
+
+    for cmd in wine wineboot winecfg wineserver
+    do
+        command -v "$cmd" >/dev/null 2>&1 || {
+            error "$cmd not found."
+            exit 1
+        }
+    done
 
     wineboot --init
 
@@ -836,13 +843,14 @@ log "Launching Zalo installer..."
 
 wine "$ZALO_SETUP"
 
-###########################################################################
-# Wait Installation
-###########################################################################
+while pgrep -f ZaloSetup.exe >/dev/null
+do
+    sleep 1
+done
 
-log "Waiting for installation to complete..."
-
-wineserver -w
+if command -v wineserver >/dev/null 2>&1; then
+    wineserver -w
+fi
 
 sleep 3
 
@@ -986,7 +994,7 @@ mkdir -p "$HOME/.local/share/icons"
 # Install Icon
 ###########################################################################
 
-ICON_SOURCE="$WORKDIR/zalo.png"
+ICON_SOURCE="$SCRIPT_DIR/zalo.png"
 
 if [[ -f "$ICON_SOURCE" ]]; then
 
