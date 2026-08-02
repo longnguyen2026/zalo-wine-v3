@@ -388,14 +388,12 @@ title "Installing Wine"
 if [[ "${SKIP_WINE_INSTALL:-0}" != "1" ]]; then
 
     log "Preparing Wine installation..."
-    if command -v wine >/dev/null &&
-       command -v wineboot >/dev/null &&
-       command -v winecfg >/dev/null &&
-       command -v wineserver >/dev/null; then
-    
-        success "Wine already installed."
+    if command -v wine >/dev/null 2>&1; then
+        success "Wine installation completed."
         wine --version
-        SKIP_WINE_INSTALL=1
+    else
+        error "Wine installation failed."
+        exit 1
     fi
 
     #######################################################################
