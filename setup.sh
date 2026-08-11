@@ -73,7 +73,7 @@ curl -fsSL \
     "$RAW_URL/install-zalo-v4.sh" \
     -o "$TMP_DIR/install-zalo-v4.sh"
 
-chmod +x "$TMP_DIR/install-zalo-v3.sh"
+chmod +x "$TMP_DIR/install-zalo-v4.sh"
 
 ##############################################################################
 # Execute
