@@ -2,7 +2,7 @@
 #
 # ==========================================================
 # Zalo Wine Installer
-# Version : 4.1
+# Version : 4.2
 # Author  : Long Nguyen
 # ==========================================================
 
@@ -14,7 +14,7 @@ APP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons"
 ICON_FILE="$ICON_DIR/zalo.png"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_VERSION="4.1"
+SCRIPT_VERSION="4.2"
 TMP_DIR="$(mktemp -d)"
 
 WINEHQ_KEY_URL="https://dl.winehq.org/wine-builds/winehq.key"
@@ -42,11 +42,33 @@ title() {
     echo -e "${BLUE}====================================================${NC}"
 }
 
+# Ubuntu 26.04 / Wine 10 may not expose wineserver in PATH.
+# Prefer the command in PATH, otherwise use the distro Wine binary directly.
+wait_wine_server() {
+    if command -v wineserver >/dev/null 2>&1; then
+        wineserver -w
+        return 0
+    fi
+
+    local server
+    for server in         /usr/lib/x86_64-linux-gnu/wine/wineserver         /usr/lib/i386-linux-gnu/wine/wineserver         /usr/lib/wine/wineserver         /opt/wine-stable/bin/wineserver         /opt/wine-devel/bin/wineserver         /opt/wine-staging/bin/wineserver
+    do
+        if [[ -x "$server" ]]; then
+            "$server" -w
+            return 0
+        fi
+    done
+
+    # Wine 10 on some Ubuntu releases manages wineserver internally.
+    # Do not fail the installation only because wineserver is not in PATH.
+    return 0
+}
+
 clear 2>/dev/null || true
 cat <<'BANNER'
 =========================================================
               ZALO WINE INSTALLER
-                    Version 4.1
+                    Version 4.2
 =========================================================
 
 Author : Long Nguyen
@@ -213,14 +235,19 @@ if ! command -v winecfg >/dev/null 2>&1; then
     exit 1
 fi
 
-if ! command -v wineserver >/dev/null 2>&1; then
-    error "Wine installation failed: wineserver command not found."
-    error "PATH=$PATH"
-    exit 1
-fi
-
+# wineserver is not always exposed in PATH on Ubuntu 26.04.
+# Verify Wine itself; the wait helper handles wineserver location.
 success "Wine: $(wine --version)"
-success "WineServer: $(wineserver --version 2>/dev/null || echo OK)"
+
+if command -v wineserver >/dev/null 2>&1; then
+    success "WineServer: $(wineserver --version 2>/dev/null || echo OK)"
+elif [[ -x /usr/lib/x86_64-linux-gnu/wine/wineserver ]]; then
+    success "WineServer: /usr/lib/x86_64-linux-gnu/wine/wineserver"
+elif [[ -x /usr/lib/i386-linux-gnu/wine/wineserver ]]; then
+    success "WineServer: /usr/lib/i386-linux-gnu/wine/wineserver"
+else
+    warn "wineserver is not exposed in PATH; Wine will manage it internally."
+fi
 
 ########################################################################
 # Winetricks
@@ -264,11 +291,11 @@ fi
 if [[ ! -d "$PREFIX/drive_c" ]]; then
     log "Initializing Wine Prefix..."
     wineboot --init
-    wineserver -w
+    wait_wine_server
 fi
 
 winecfg -v win10
-wineserver -w
+wait_wine_server
 
 ########################################################################
 # Wine components
@@ -291,7 +318,7 @@ for component in "${COMPONENTS[@]}"; do
     else
         warn "$component could not be installed; continuing."
     fi
-    wineserver -w || true
+    wait_wine_server || true
 done
 
 ########################################################################
@@ -399,7 +426,7 @@ log "Launching Zalo installer..."
 wine "$ZALO_SETUP"
 
 # Wait for the Wine installer process to finish.
-wineserver -w || true
+wait_wine_server || true
 sleep 3
 
 ########################################################################
