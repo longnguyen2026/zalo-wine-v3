@@ -3,7 +3,7 @@
 # ==========================================================
 # Zalo Wine Installer
 # Setup Script
-# Version : 3.0
+# Version : 4.0
 # Author  : Long Nguyen
 # ==========================================================
 
@@ -59,7 +59,7 @@ error() {
 
 echo
 echo -e "${BLUE}======================================================${NC}"
-echo -e "${CYAN}        Zalo Wine Installer v3.0${NC}"
+echo -e "${CYAN}        Zalo Wine Installer v4.0${NC}"
 echo -e "${BLUE}======================================================${NC}"
 echo
 
@@ -70,8 +70,8 @@ echo
 log "Downloading installer..."
 
 curl -fsSL \
-    "$RAW_URL/install-zalo-v3.sh" \
-    -o "$TMP_DIR/install-zalo-v3.sh"
+    "$RAW_URL/install-zalo-v4.sh" \
+    -o "$TMP_DIR/install-zalo-v4.sh"
 
 chmod +x "$TMP_DIR/install-zalo-v3.sh"
 
@@ -79,4 +79,4 @@ chmod +x "$TMP_DIR/install-zalo-v3.sh"
 # Execute
 ##############################################################################
 
-exec "$TMP_DIR/install-zalo-v3.sh"
+exec "$TMP_DIR/install-zalo-v4.sh"
