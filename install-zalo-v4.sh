@@ -2,7 +2,7 @@
 #
 # ==========================================================
 # Zalo Wine Installer
-# Version : 4.0
+# Version : 4.1
 # Author  : Long Nguyen
 # ==========================================================
 
@@ -14,7 +14,7 @@ APP_DIR="$HOME/.local/share/applications"
 ICON_DIR="$HOME/.local/share/icons"
 ICON_FILE="$ICON_DIR/zalo.png"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPT_VERSION="4.0"
+SCRIPT_VERSION="4.1"
 TMP_DIR="$(mktemp -d)"
 
 WINEHQ_KEY_URL="https://dl.winehq.org/wine-builds/winehq.key"
@@ -46,7 +46,7 @@ clear 2>/dev/null || true
 cat <<'BANNER'
 =========================================================
               ZALO WINE INSTALLER
-                    Version 4.0
+                    Version 4.1
 =========================================================
 
 Author : Long Nguyen
@@ -184,23 +184,43 @@ else
     sudo apt install -y --install-recommends wine wine64 wine32
 fi
 
+# WineHQ binaries may be installed under /opt/wine-*/bin.
+if [[ -x /opt/wine-stable/bin/wine ]]; then
+    export PATH="/opt/wine-stable/bin:$PATH"
+elif [[ -x /opt/wine-devel/bin/wine ]]; then
+    export PATH="/opt/wine-devel/bin:$PATH"
+elif [[ -x /opt/wine-staging/bin/wine ]]; then
+    export PATH="/opt/wine-staging/bin:$PATH"
+fi
+
 hash -r 2>/dev/null || true
 
 if ! command -v wine >/dev/null 2>&1; then
-    # WineHQ binaries are normally in /opt/wine-stable/bin.
-    if [[ -x /opt/wine-stable/bin/wine ]]; then
-        export PATH="/opt/wine-stable/bin:$PATH"
-    elif [[ -x /opt/wine-devel/bin/wine ]]; then
-        export PATH="/opt/wine-devel/bin:$PATH"
-    fi
+    error "Wine installation failed: wine command not found."
+    error "PATH=$PATH"
+    exit 1
 fi
 
-if ! command -v wine >/dev/null 2>&1; then
-    error "Wine installation failed: wine command not found."
+if ! command -v wineboot >/dev/null 2>&1; then
+    error "Wine installation failed: wineboot command not found."
+    error "PATH=$PATH"
+    exit 1
+fi
+
+if ! command -v winecfg >/dev/null 2>&1; then
+    error "Wine installation failed: winecfg command not found."
+    error "PATH=$PATH"
+    exit 1
+fi
+
+if ! command -v wineserver >/dev/null 2>&1; then
+    error "Wine installation failed: wineserver command not found."
+    error "PATH=$PATH"
     exit 1
 fi
 
 success "Wine: $(wine --version)"
+success "WineServer: $(wineserver --version 2>/dev/null || echo OK)"
 
 ########################################################################
 # Winetricks
@@ -243,7 +263,7 @@ fi
 
 if [[ ! -d "$PREFIX/drive_c" ]]; then
     log "Initializing Wine Prefix..."
-    wineboot -u
+    wineboot --init
     wineserver -w
 fi
 
